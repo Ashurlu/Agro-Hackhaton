@@ -86,5 +86,5 @@ cd web && npm run mock-api     # terminal 1
 cd web && npm run dev          # terminal 2 → http://localhost:3000
 ```
 
-The map's satellite layer (Esri World Imagery) and the weather card (Open-Meteo) need internet
-access; offline, the map falls back to the plain basemap and the weather card hides itself.
+The map's satellite layer (Esri World Imagery) needs internet access; offline, the map falls
+back to the plain basemap.
