@@ -86,5 +86,9 @@ cd web && npm run mock-api     # terminal 1
 cd web && npm run dev          # terminal 2 → http://localhost:3000
 ```
 
+On Windows, double-click `scripts\start-ui.cmd` (or run it from any terminal): it installs
+dependencies on first run, opens both servers in their own windows and the browser once the
+portal answers. It works even where PowerShell's execution policy blocks `npm.ps1`.
+
 The map's satellite layer (Esri World Imagery) needs internet access; offline, the map falls
 back to the plain basemap.
