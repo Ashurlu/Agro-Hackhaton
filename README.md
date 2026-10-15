@@ -41,6 +41,11 @@ To restore a clean demo state (drops the database and uploaded files):
 ./scripts/reset-demo.ps1
 ```
 
+## Online (free) deployment
+
+The whole stack — PostGIS database, API and web — deploys to Render's free plan from
+[`render.yaml`](render.yaml). Steps and free-plan limits: [`deploy/render/README.md`](deploy/render/README.md).
+
 ## Demo accounts
 
 Created by the seed; the password is `DEMO_PASSWORD` from `.env` (default `Demo2026!`).
