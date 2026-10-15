@@ -11,8 +11,8 @@ from pydantic import BaseModel
 from sqlalchemy import case, func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.masking import mask_identifier
 from app.modules.applications.models import Application, ApplicationStatus, BusinessPlan, Outcome
-from app.modules.applications.service import mask
 from app.modules.areas.models import AreaStatus, FarmArea, Purpose
 from app.modules.competitions.models import Competition, CompetitionArea, CompetitionStatus
 from app.modules.entrepreneurs.models import Entrepreneur
@@ -87,13 +87,24 @@ class Stats(BaseModel):
 
 
 class PublicStats(BaseModel):
+    """Aggregates only, for the public transparency page: no names, no identifiers."""
+
     competitions_open: int
     areas_offered: int
     hectares_offered: Decimal
+    areas_allocated: int
     applications_total: int
+    applications_by_status: dict[str, int]
     decisions: int
+    decided_won: int
+    decided_rejected: int
     planned_investment_azn: Decimal
     planned_jobs: int
+    local_applicant_share: float
+    avg_decision_days: float | None
+    by_rayon: list[RayonStat]
+    by_purpose: list[PurposeStat]
+    competitions: list[CompetitionStat]
 
 
 def _submitted():
@@ -322,16 +333,33 @@ async def compute(session: AsyncSession) -> Stats:
     )
 
 
+PUBLIC_COMPETITIONS = (
+    CompetitionStatus.PUBLISHED,
+    CompetitionStatus.CLOSED,
+    CompetitionStatus.RESULTS_ANNOUNCED,
+)
+
+
 async def public(session: AsyncSession) -> PublicStats:
     s = await compute(session)
     return PublicStats(
         competitions_open=s.competitions_open,
         areas_offered=s.areas_offered,
         hectares_offered=s.hectares_offered,
+        areas_allocated=s.areas_allocated,
         applications_total=s.applications_total,
+        applications_by_status=s.applications_by_status,
         decisions=s.decided_won + s.decided_rejected,
+        decided_won=s.decided_won,
+        decided_rejected=s.decided_rejected,
         planned_investment_azn=s.planned_investment_azn,
         planned_jobs=s.planned_jobs,
+        local_applicant_share=s.local_applicant_share,
+        avg_decision_days=s.avg_decision_days,
+        by_rayon=s.by_rayon,
+        by_purpose=s.by_purpose,
+        # Drafts and competitions waiting for approval are internal.
+        competitions=[c for c in s.by_competition if c.status in PUBLIC_COMPETITIONS],
     )
 
 
@@ -414,7 +442,7 @@ async def applications_xlsx(
                 OUTCOME_AZ.get(app.outcome.value) if app.outcome else None,
                 snap.get("company_name") or snap.get("full_name") or profile.display_name,
                 "Hüquqi şəxs" if company else "Fiziki şəxs",
-                mask(snap.get("voen") if company else snap.get("fin")),
+                mask_identifier(snap.get("voen") if company else snap.get("fin")),
                 "Bəli" if snap.get("is_local") else "Xeyr",
                 area.code,
                 rayon,

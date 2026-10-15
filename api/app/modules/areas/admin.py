@@ -30,6 +30,7 @@ from app.modules.areas.models import (
 from app.modules.audit import service as audit
 from app.modules.competitions.models import Competition, CompetitionArea, CompetitionStatus
 from app.modules.geo.models import CountryOutline, Rayon, Village
+from app.modules.suitability import service as suitability
 
 router = APIRouter(prefix="/admin/areas", tags=["farm areas (staff)"])
 
@@ -295,6 +296,7 @@ async def create_area(
     )
     session.add(area)
     await session.flush()
+    await suitability.refresh(session, [area.id])
     audit.record(
         session,
         user,
@@ -347,6 +349,9 @@ async def update_area(
             setattr(area, key, changes[key])
     if data.status in (AreaStatus.DRAFT, AreaStatus.AVAILABLE, AreaStatus.WITHDRAWN):
         area.status = data.status
+    if {"geometry", "purpose", "demining_status"} & changes.keys():
+        await session.flush()
+        await suitability.refresh(session, [area.id])
     audit.record(
         session,
         user,
