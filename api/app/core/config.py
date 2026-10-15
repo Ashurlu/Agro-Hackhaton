@@ -1,29 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-def normalize_database_url(url: str) -> str:
-    """Accept the URLs hosted Postgres providers hand out (Render, Neon, Supabase).
-
-    They use the `postgres://` / `postgresql://` scheme and libpq's `sslmode`,
-    while SQLAlchemy with asyncpg needs `postgresql+asyncpg://` and `ssl`.
-    """
-    parts = urlsplit(url)
-    scheme = parts.scheme
-    if scheme in ("postgres", "postgresql"):
-        scheme = "postgresql+asyncpg"
-    query = []
-    for key, value in parse_qsl(parts.query, keep_blank_values=True):
-        if key == "sslmode":
-            key = "ssl"
-        if key in ("channel_binding", "options"):
-            continue  # libpq-only parameters asyncpg rejects
-        query.append((key, value))
-    return urlunsplit((scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
 
 class Settings(BaseSettings):
@@ -36,11 +14,6 @@ class Settings(BaseSettings):
     api_prefix: str = "/api/v1"
 
     database_url: str = "postgresql+asyncpg://agro:agro@localhost:5433/agro"
-
-    @field_validator("database_url")
-    @classmethod
-    def asyncpg_url(cls, value: str) -> str:
-        return normalize_database_url(value)
 
     jwt_secret: str
     jwt_algorithm: str = "HS256"

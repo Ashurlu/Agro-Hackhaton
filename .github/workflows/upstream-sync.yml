@@ -1,0 +1,124 @@
+name: Upstream sync
+
+# Keeps this repository in step with the backend repository
+# (FARADTechnologies/agro-invest-portal) without anyone watching it.
+#
+# - Backend-only upstream changes are copied in, checked (web typecheck) and
+#   pushed to main; CI then tests them and deploys to Render.
+# - When upstream also changed its web UI, that UI has to be ported into the
+#   redesign by hand, so the synced backend goes to the branch sync/upstream with
+#   a pull request describing the UI work instead of straight to main.
+#
+# Needs the secret UPSTREAM_TOKEN: a fine-grained token with Contents read on
+# agro-invest-portal and Contents + Pull requests read/write on this repository.
+# A push made with it (unlike GITHUB_TOKEN) starts CI, which deploys.
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TOKEN: ${{ secrets.UPSTREAM_TOKEN }}
+    steps:
+      - name: Check the token
+        id: token
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::warning::UPSTREAM_TOKEN secret is not set; nothing synced."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.token.outputs.ok == 'true'
+        with:
+          token: ${{ secrets.UPSTREAM_TOKEN }}
+          fetch-depth: 0
+
+      - name: Copy the backend from upstream
+        id: sync
+        if: steps.token.outputs.ok == 'true'
+        run: |
+          git config user.name "agro-sync-bot"
+          git config user.email "agro-sync-bot@users.noreply.github.com"
+          git remote add upstream "https://x-access-token:${TOKEN}@github.com/FARADTechnologies/agro-invest-portal.git"
+          set +e
+          sh scripts/sync-upstream.sh | tee /tmp/sync.txt
+          code=$?
+          set -e
+          if [ "$code" = 0 ]; then echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "$code" != 10 ]; then exit "$code"; fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          last=$(git show HEAD:.upstream-sync)
+          head=$(cat .upstream-sync)
+          if git diff --quiet "$last" "$head" -- web ':(exclude)web/src/lib/api/schema.d.ts'; then
+            echo "ui=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ui=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "head=$(git rev-parse --short "$head")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        if: steps.sync.outputs.changed == 'true'
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Typecheck the web app against the new API
+        id: check
+        if: steps.sync.outputs.changed == 'true'
+        working-directory: web
+        run: |
+          npm ci --no-audit --no-fund
+          if npm run typecheck > /tmp/typecheck.txt 2>&1; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            cat /tmp/typecheck.txt
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push to main
+        if: steps.sync.outputs.changed == 'true' && steps.sync.outputs.ui == 'false' && steps.check.outputs.ok == 'true'
+        run: |
+          git add -A
+          git commit -q -m "Sync backend from upstream ${{ steps.sync.outputs.head }}"
+          git push origin HEAD:main
+
+      - name: Open a pull request for the UI work
+        if: steps.sync.outputs.changed == 'true' && (steps.sync.outputs.ui == 'true' || steps.check.outputs.ok != 'true')
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_TOKEN }}
+        run: |
+          git add -A
+          git commit -q -m "Sync backend from upstream ${{ steps.sync.outputs.head }}"
+          git push -f origin HEAD:sync/upstream
+          {
+            echo "The backend was copied from upstream ${{ steps.sync.outputs.head }}. Before it can go live,"
+            echo "the web UI needs work: port the upstream UI changes listed below into the redesign,"
+            echo "or fix the typecheck errors. Ask Claude: \"upstream sync PR-ını tamamla\"."
+            echo
+            echo '```'
+            cat /tmp/sync.txt
+            [ -f /tmp/typecheck.txt ] && cat /tmp/typecheck.txt
+            echo '```'
+          } > /tmp/body.md
+          if gh pr view sync/upstream --json state -q .state 2>/dev/null | grep -q OPEN; then
+            gh pr edit sync/upstream --body-file /tmp/body.md
+          else
+            gh pr create --head sync/upstream --base main \
+              --title "Upstream sync: UI work needed" --body-file /tmp/body.md
+          fi
