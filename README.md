@@ -11,6 +11,31 @@ System; a mock of the EKTİS interface is included and the real system is never 
 > Prototip — farm-area terms, competitions, applicants and demining data in this repository are
 > demo data. Geography comes from OpenStreetMap.
 
+## Live demo
+
+| | Link |
+|---|---|
+| **Portal** | https://farad-agro-web.onrender.com |
+| Administration console | https://farad-agro-web.onrender.com/admin |
+| Catalogue | https://farad-agro-web.onrender.com/catalogue |
+| Map | https://farad-agro-web.onrender.com/map |
+| API (Swagger) | https://farad-agro-api.onrender.com/api/v1/docs |
+
+Demo sign-in (password `Demo2026!`):
+
+| Account | E-mail | Sees |
+|---|---|---|
+| Administrator | `admin@agro-demo.test` | the whole administration console, staff and permissions, listings |
+| Specialist | `mutexessis@agro-demo.test` | applications and documents, plots, competitions |
+| Supervisor | `rehber@agro-demo.test` | competition approval, statistics, audit log |
+| Portal user | `investor@agro-demo.test` | catalogue, applications, cabinet |
+
+Anyone can also register a portal user at `/register`. The **Aqrar köməkçi** button at the
+bottom right is an AI assistant that suggests suitable plots.
+
+Hosted on Render's free plan: after about 15 minutes without visitors the services sleep, so the
+first page can take up to a minute to open.
+
 ## Run it
 
 Requirements: Docker Desktop (Windows/macOS) or Docker Engine with Compose v2, about 6 GB of
