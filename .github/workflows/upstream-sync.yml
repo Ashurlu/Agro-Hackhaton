@@ -13,9 +13,9 @@ name: Upstream sync
 # agro-invest-portal and Contents + Pull requests read/write on this repository.
 # A push made with it (unlike GITHUB_TOKEN) starts CI, which deploys.
 
+# Off in this copy (Ashurlu/Agro-Hackhaton): it needs FARAD's private backend repo and its token. Run it by hand from the
+# Actions tab if ever needed.
 on:
-  schedule:
-    - cron: "*/30 * * * *"
   workflow_dispatch:
 
 concurrency:

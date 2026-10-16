@@ -10,9 +10,9 @@ name: Keep Render awake
 #
 # Independent of the portal itself: it only reads two public health URLs.
 
+# Off in this copy (Ashurlu/Agro-Hackhaton): it pings FARAD's Render services. Run it by hand from the
+# Actions tab if ever needed.
 on:
-  schedule:
-    - cron: "*/5 5-16 * * *"   # UTC; Baku is UTC+4
   workflow_dispatch:
 
 permissions: {}
