@@ -25,13 +25,6 @@ At the start of every session, and before finishing any task:
 
 UI text is Azerbaijani only for now.
 
-## Waiting to merge
-
-- Branch `ui/citizenship-admin-listings` (citizenship at registration, no sahibkar role, listing
-  desk in /admin) needs backend PR FARADTechnologies/agro-invest-portal#1. As soon as that PR is
-  merged upstream: run the sync, then merge this branch into main (resolve
-  `web/src/lib/api/schema.d.ts` by taking upstream's), typecheck, build, push.
-
 ## Rules
 
 - `api/`, `seed/`, `ektis-mock/`, `geo/`, `docs/`, `deploy/nginx/`, `docker-compose.yml`,
